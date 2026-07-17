@@ -1,7 +1,7 @@
 CC=gcc
 AS=nasm
 LD=gcc
-CFLAGS=-m32 -ffreestanding -O3 -flto -nostdlib -fno-stack-protector -fno-pie -fno-pic
+CFLAGS=-m32 -ffreestanding -O3 -flto -nostdlib -fno-stack-protector -fno-pie -fno-pic -Isrc/kernel/inc
 LDFLAGS=-m32 -Wl,-T,linker.ld -nostdlib -fuse-ld=bfd
 QEMU=qemu-system-i386
 ISO=os.iso
@@ -19,7 +19,7 @@ all: os.bin
 run: all
 	$(QEMU) -cdrom $(ISO)
 
-os.bin: $(BIN)/boot.o $(OBJ_C)
+os.bin: $(BIN)/boot.o $(BIN)/lgdt.o $(OBJ_C)
 	$(LD) $(LDFLAGS) $^ -o $@
 
 $(BIN)/%.o: %.c
@@ -27,6 +27,10 @@ $(BIN)/%.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 $(BIN)/boot.o: src/boot/boot.asm
+	@mkdir -p $(dir $@)
+	$(AS) -f elf32 $< -o $@
+
+$(BIN)/lgdt.o: src/boot/lgdt.asm
 	@mkdir -p $(dir $@)
 	$(AS) -f elf32 $< -o $@
 
