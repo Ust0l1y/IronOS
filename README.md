@@ -11,3 +11,4 @@ make run
 [![License](https://img.shields.io/badge/License-GPL3.0-yellow?style=for-the-badge)](LICENSE.TXT)
 ![Version](https://img.shields.io/badge/version-0.2-blue?style=for-the-badge)
 [![Assembler](https://img.shields.io/badge/assembler-NASM-1f425f?style=for-the-badge)](https://nasm.us/)
+[![OSdev](https://img.shields.io/badge/osdev-WIKI-red?style=for-the-badge)](https://wiki.osdev.org)
