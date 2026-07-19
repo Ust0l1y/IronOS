@@ -10,6 +10,19 @@ size_t column = 0;
 uint8_t color = ECOLOR(LIGHT_GREY, BLACK);
 uint16_t* buffer = (uint16_t*)0xB8000;
 
+void scroll() 
+{
+    if (row >= 25) 
+    {
+        uint16_t *dst = buffer;
+        uint16_t *src = buffer + 80;
+        while (src < buffer + 2000) *dst++ = *src++;
+        while (dst < buffer + 2000) *dst++ = ((uint16_t)color << 8) | ' ';
+        row = 24;
+        set_cursor(column, row);
+    }
+}
+
 void putc(char c) 
 {
     if (c == '\n') 
@@ -19,36 +32,16 @@ void putc(char c)
     } 
     else 
     {
-        const size_t index = row * 80 + column;
-        buffer[index] = ((uint16_t)color << 8) | (uint8_t)c;
-        column++;
-        if (column >= 80) 
+        if (row >= 25) scroll();
+        buffer[row * 80 + column] = ((uint16_t)color << 8) | (uint8_t)c;
+        if (++column >= 80) 
         {
             column = 0;
             row++;
         }
     }
+    if (row >= 25) scroll();
     set_cursor(column, row);
-    scroll();
-}
-
-void scroll() 
-{
-    if (row >= 25) 
-    {
-        for (size_t r = 1; r < 25; r++) 
-        {
-            for (size_t c = 0; c < 80; c++) 
-            {
-                buffer[(r - 1) * 80 + c] = buffer[r * 80 + c];
-            }
-        }
-        for (size_t c = 0; c < 80; c++) 
-        {
-            buffer[24 * 80 + c] = ((uint16_t)color << 8) | ' ';
-        }
-        row = 24;
-    }
 }
 
 void set_cursor(uint8_t x, uint8_t y) 
@@ -70,97 +63,72 @@ void get_cursor(uint8_t *x, uint8_t *y)
     *y = pos / 80;
 }
 
-void printf(const char *format, ...) 
+void printf(const char *fmt, ...) 
 {
     va_list args;
-    va_start(args, format);
-    for (size_t i = 0; i < strlen(format); i++) 
+    va_start(args, fmt);
+    while (*fmt) 
     {
-        if (format[i] == '%') 
+        if (*fmt == '%') 
         {
-            i++;
-            switch (format[i]) 
+            fmt++;
+            switch (*fmt) 
             {
                 case 'c': 
-                {
-                    char c = (char)va_arg(args, int);
-                    putc(c);
+                    putc((char)va_arg(args, int));
                     break;
-                }
                 case 'd': 
                 {
-                    int num = va_arg(args, int);
-                    if (num < 0) 
+                    int n = va_arg(args, int);
+                    unsigned int u = n;
+                    if (n < 0) 
                     {
                         putc('-');
-                        num = -num;
+                        u = -n;
                     }
-                    char buffer[10];
-                    size_t j = 0;
+                    char b[10];
+                    char *p = b;
                     do 
                     {
-                        buffer[j++] = (num % 10) + '0';
-                        num /= 10;
-                    } while (num > 0);
-                    for (size_t k = 0; k < j / 2; k++) 
-                    {
-                        char temp = buffer[k];
-                        buffer[k] = buffer[j - k - 1];
-                        buffer[j - k - 1] = temp;
-                    }
-                    for (size_t k = 0; k < j; k++) 
-                    {
-                        putc(buffer[k]);
-                    }
+                        *p++ = (u % 10) + '0';
+                        u /= 10;
+                    } while (u > 0);
+                    while (p > b) putc(*--p);
                     break;
                 }
                 case 'x': 
                 {
-                    unsigned int num = va_arg(args, unsigned int);
-                    char buffer[9];
-                    size_t j = 0;
+                    unsigned int u = va_arg(args, unsigned int);
+                    char b[9];
+                    char *p = b;
                     do 
                     {
-                        unsigned int digit = num % 16;
-                        buffer[j++] = (digit < 10) ? (digit + '0') : (digit - 10 + 'a');
-                        num /= 16;
-                    } while (num > 0);
-                    for (size_t k = 0; k < j / 2; k++) 
-                    {
-                        char temp = buffer[k];
-                        buffer[k] = buffer[j - k - 1];
-                        buffer[j - k - 1] = temp;
-                    }
-                    for (size_t k = 0; k < j; k++) 
-                    {
-                        putc(buffer[k]);
-                    }
+                        unsigned int d = u % 16;
+                        *p++ = (d < 10) ? (d + '0') : (d - 10 + 'a');
+                        u /= 16;
+                    } while (u > 0);
+                    while (p > b) putc(*--p);
                     break;
                 }
                 case 'C':
-                {
-                    uint8_t new_color = (uint8_t)va_arg(args, int);
-                    color = ECOLOR(new_color, BLACK);
+                    color = (uint8_t)va_arg(args, int);
                     break;
-                }
                 case 's': 
                 {
-                    const char* str = va_arg(args, const char*);
-                    for (size_t j = 0; j < strlen(str); j++) 
-                    {
-                        putc(str[j]);
-                    }
+                    const char *s = va_arg(args, const char*);
+                    while (*s) putc(*s++);
                     break;
                 }
                 default:
-                    putc(format[i]);
+                    putc(*fmt);
                     break;
             }
         } 
         else 
         {
-            putc(format[i]);
+            putc(*fmt);
         }
+        fmt++;
     }
     va_end(args);
 }
